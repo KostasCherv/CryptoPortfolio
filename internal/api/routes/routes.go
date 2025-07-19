@@ -7,6 +7,8 @@ import (
 	"simple_api/pkg/logger"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/gorm"
 )
 
@@ -22,6 +24,9 @@ func Setup(db *gorm.DB, log *logger.Logger, cfg *config.Config) *gin.Engine {
 
 	// Health check
 	router.GET("/health", handler.HealthCheck)
+
+	// Swagger documentation
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")

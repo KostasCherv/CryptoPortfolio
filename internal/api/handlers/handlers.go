@@ -47,6 +47,13 @@ func validatePassword(password string) string {
 }
 
 // HealthCheck handles health check requests
+// @Summary Health check endpoint
+// @Description Check if the server is running and healthy
+// @Tags Health
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "Server status information"
+// @Router /health [get]
 func (h *Handler) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "ok",
@@ -56,24 +63,46 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 }
 
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
-	Name     string `json:"name" binding:"required,min=2"`
+	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
+	Password string `json:"password" binding:"required,min=6" example:"Password123"`
+	Name     string `json:"name" binding:"required,min=2" example:"John Doe"`
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
+	Password string `json:"password" binding:"required" example:"Password123"`
 }
 
 type UserResponse struct {
-	ID        uint      `json:"id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint      `json:"id" example:"1"`
+	Email     string    `json:"email" example:"user@example.com"`
+	Name      string    `json:"name" example:"John Doe"`
+	CreatedAt time.Time `json:"created_at" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt time.Time `json:"updated_at" example:"2024-01-01T00:00:00Z"`
 }
 
+type AuthResponse struct {
+	Message string       `json:"message" example:"User registered successfully"`
+	Token   string       `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	User    UserResponse `json:"user"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error" example:"Invalid request data"`
+}
+
+// Register handles user registration
+// @Summary Register a new user
+// @Description Create a new user account with email, password, and name
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "User registration data"
+// @Success 201 {object} AuthResponse "User created successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request data or weak password"
+// @Failure 409 {object} ErrorResponse "User with this email already exists"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/auth/register [post]
 func (h *Handler) Register() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req RegisterRequest
@@ -135,6 +164,18 @@ func (h *Handler) Register() gin.HandlerFunc {
 	}
 }
 
+// Login handles user authentication
+// @Summary Authenticate user
+// @Description Login with email and password to receive JWT token
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "User login credentials"
+// @Success 200 {object} AuthResponse "Login successful"
+// @Failure 400 {object} ErrorResponse "Invalid request data"
+// @Failure 401 {object} ErrorResponse "Invalid credentials"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/auth/login [post]
 func (h *Handler) Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
@@ -177,6 +218,21 @@ func (h *Handler) Login() gin.HandlerFunc {
 	}
 }
 
+type UserProfileResponse struct {
+	User UserResponse `json:"user"`
+}
+
+// GetCurrentUser retrieves the current authenticated user's profile
+// @Summary Get current user profile
+// @Description Retrieve the profile information of the currently authenticated user
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} UserProfileResponse "User profile retrieved successfully"
+// @Failure 401 {object} ErrorResponse "User not authenticated"
+// @Failure 404 {object} ErrorResponse "User not found"
+// @Router /api/v1/users/me [get]
 func (h *Handler) GetCurrentUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
@@ -204,9 +260,28 @@ func (h *Handler) GetCurrentUser() gin.HandlerFunc {
 }
 
 type UpdateUserRequest struct {
-	Name string `json:"name" binding:"required,min=2"`
+	Name string `json:"name" binding:"required,min=2" example:"John Doe Updated"`
 }
 
+type UpdateUserResponse struct {
+	Message string       `json:"message" example:"User updated successfully"`
+	User    UserResponse `json:"user"`
+}
+
+// UpdateUser updates the current authenticated user's profile
+// @Summary Update current user profile
+// @Description Update the name of the currently authenticated user
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body UpdateUserRequest true "User update data"
+// @Success 200 {object} UpdateUserResponse "User updated successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request data"
+// @Failure 401 {object} ErrorResponse "User not authenticated"
+// @Failure 404 {object} ErrorResponse "User not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/users/me [put]
 func (h *Handler) UpdateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")

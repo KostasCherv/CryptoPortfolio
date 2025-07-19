@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,22 +16,52 @@ import (
 	"simple_api/pkg/logger"
 
 	"github.com/gin-gonic/gin"
+
+	_ "simple_api/docs"
 )
 
-func main() {
-	// Initialize logger
-	log := logger.New()
+// @title           Simple API
+// @version         1.0
+// @description     A simple, high-performance Go API with authentication and user management
+// @termsOfService  http://swagger.io/terms/
 
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost:8080
+// @BasePath  /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
+// @tag.name Authentication
+// @tag.description Authentication operations
+
+// @tag.name Users
+// @tag.description User management operations
+
+// @tag.name Health
+// @tag.description Health check operations
+func main() {
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Failed to load config", err)
+		log.Fatalf("Failed to load config: %v", err)
 	}
+
+	// Initialize logger
+	appLogger := logger.New()
 
 	// Initialize database
 	db, err := database.New(cfg.Database)
 	if err != nil {
-		log.Fatal("Failed to connect to database", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
 	// Set Gin mode
@@ -38,8 +69,8 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// Initialize router
-	router := routes.Setup(db, log, cfg)
+	// Setup router
+	router := routes.Setup(db, appLogger, cfg)
 
 	// Create server
 	srv := &http.Server{
@@ -47,27 +78,27 @@ func main() {
 		Handler: router,
 	}
 
-	// Start server in goroutine
+	// Start server in a goroutine
 	go func() {
-		log.Info("Starting server", "port", cfg.Server.Port)
+		log.Printf("Server starting on port %d", cfg.Server.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Failed to start server", err)
+			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
-	// Wait for interrupt signal
+	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Info("Shutting down server...")
+	log.Println("Shutting down server...")
 
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// The context is used to inform the server it has 5 seconds to finish
+	// the request it is currently handling
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown", err)
+		log.Fatal("Server forced to shutdown:", err)
 	}
 
-	log.Info("Server exited")
+	log.Println("Server exiting")
 }
