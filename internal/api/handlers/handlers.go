@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"simple_api/internal/config"
@@ -20,6 +22,28 @@ type Handler struct {
 
 func NewHandler(db *gorm.DB, cfg *config.Config) *Handler {
 	return &Handler{DB: db, Config: cfg}
+}
+
+// Simple error response helper
+func errorResponse(c *gin.Context, status int, message string) {
+	c.JSON(status, gin.H{"error": message})
+}
+
+// Basic password strength validation
+func validatePassword(password string) string {
+	if len(password) < 8 {
+		return "Password must be at least 8 characters long"
+	}
+	if !regexp.MustCompile(`[A-Z]`).MatchString(password) {
+		return "Password must contain at least one uppercase letter"
+	}
+	if !regexp.MustCompile(`[a-z]`).MatchString(password) {
+		return "Password must contain at least one lowercase letter"
+	}
+	if !regexp.MustCompile(`[0-9]`).MatchString(password) {
+		return "Password must contain at least one number"
+	}
+	return ""
 }
 
 // HealthCheck handles health check requests
@@ -54,47 +78,46 @@ func (h *Handler) Register() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req RegisterRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":   "Invalid request data",
-				"details": err.Error(),
-			})
+			errorResponse(c, http.StatusBadRequest, "Invalid request data")
 			return
 		}
 
+		// Validate password strength
+		if errMsg := validatePassword(req.Password); errMsg != "" {
+			errorResponse(c, http.StatusBadRequest, errMsg)
+			return
+		}
+
+		// Check if user already exists
 		var existingUser models.User
-		if err := h.DB.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
-			c.JSON(http.StatusConflict, gin.H{
-				"error": "User with this email already exists",
-			})
+		if err := h.DB.Where("email = ?", strings.ToLower(req.Email)).First(&existingUser).Error; err == nil {
+			errorResponse(c, http.StatusConflict, "User with this email already exists")
 			return
 		}
 
+		// Hash password
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to process password",
-			})
+			errorResponse(c, http.StatusInternalServerError, "Failed to process password")
 			return
 		}
 
+		// Create user
 		user := models.User{
-			Email:    req.Email,
+			Email:    strings.ToLower(req.Email),
 			Password: string(hashedPassword),
-			Name:     req.Name,
+			Name:     strings.TrimSpace(req.Name),
 		}
 
 		if err := h.DB.Create(&user).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to create user",
-			})
+			errorResponse(c, http.StatusInternalServerError, "Failed to create user")
 			return
 		}
 
+		// Generate JWT token
 		token, err := h.generateJWT(user.ID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to generate token",
-			})
+			errorResponse(c, http.StatusInternalServerError, "Failed to generate token")
 			return
 		}
 
@@ -116,33 +139,27 @@ func (h *Handler) Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":   "Invalid request data",
-				"details": err.Error(),
-			})
+			errorResponse(c, http.StatusBadRequest, "Invalid request data")
 			return
 		}
 
+		// Find user by email
 		var user models.User
-		if err := h.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "Invalid credentials",
-			})
+		if err := h.DB.Where("email = ?", strings.ToLower(req.Email)).First(&user).Error; err != nil {
+			errorResponse(c, http.StatusUnauthorized, "Invalid credentials")
 			return
 		}
 
+		// Verify password
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "Invalid credentials",
-			})
+			errorResponse(c, http.StatusUnauthorized, "Invalid credentials")
 			return
 		}
 
+		// Generate JWT token
 		token, err := h.generateJWT(user.ID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to generate token",
-			})
+			errorResponse(c, http.StatusInternalServerError, "Failed to generate token")
 			return
 		}
 
@@ -164,17 +181,13 @@ func (h *Handler) GetCurrentUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "User not authenticated",
-			})
+			errorResponse(c, http.StatusUnauthorized, "User not authenticated")
 			return
 		}
 
 		var user models.User
 		if err := h.DB.First(&user, userID).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "User not found",
-			})
+			errorResponse(c, http.StatusNotFound, "User not found")
 			return
 		}
 
@@ -198,34 +211,26 @@ func (h *Handler) UpdateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "User not authenticated",
-			})
+			errorResponse(c, http.StatusUnauthorized, "User not authenticated")
 			return
 		}
 
 		var req UpdateUserRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":   "Invalid request data",
-				"details": err.Error(),
-			})
+			errorResponse(c, http.StatusBadRequest, "Invalid request data")
 			return
 		}
 
 		var user models.User
 		if err := h.DB.First(&user, userID).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "User not found",
-			})
+			errorResponse(c, http.StatusNotFound, "User not found")
 			return
 		}
 
-		user.Name = req.Name
+		// Update user
+		user.Name = strings.TrimSpace(req.Name)
 		if err := h.DB.Save(&user).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to update user",
-			})
+			errorResponse(c, http.StatusInternalServerError, "Failed to update user")
 			return
 		}
 
