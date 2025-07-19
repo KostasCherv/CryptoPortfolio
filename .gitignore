@@ -30,3 +30,6 @@ Thumbs.db
 
 # Postman
 .postman/
+coverage.html
+coverage.out
+coverage/

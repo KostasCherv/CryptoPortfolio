@@ -12,6 +12,7 @@ A high-performance REST API built with Go, featuring clean architecture and prop
 - Structured logging with Zap
 - Graceful shutdown handling
 - **Comprehensive API documentation with Swagger/OpenAPI**
+- **Extensive test coverage with automated testing**
 
 ## Project Structure
 
@@ -90,6 +91,134 @@ go build -o bin/server cmd/server/main.go
 ```
 
 The server starts on `http://localhost:8080` by default.
+
+## Testing
+
+This project includes comprehensive testing with high coverage and automated test scripts.
+
+### Quick Test Commands
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run tests with verbose output
+go test -v ./...
+
+# Run tests with coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out -o coverage.html
+
+# Run tests for specific package
+go test ./internal/api/handlers
+go test ./internal/api/middleware
+go test ./internal/config
+```
+
+### Test Coverage
+
+```bash
+# Generate coverage report
+go test -coverprofile=coverage.out ./...
+
+# View coverage in browser
+go tool cover -html=coverage.out
+
+# View coverage in terminal
+go tool cover -func=coverage.out
+
+# Check coverage percentage
+go test -cover ./... | grep -E "(PASS|FAIL|coverage:)"
+```
+
+### Testing Scripts
+
+The project includes several testing scripts in the `scripts/` directory:
+
+```bash
+# Run all tests with coverage
+./scripts/test.sh
+
+# Run tests and generate coverage report
+./scripts/test-coverage.sh
+
+# Run tests in watch mode (requires fswatch)
+./scripts/test-watch.sh
+
+# Run integration tests
+./scripts/test-integration.sh
+
+# Clean test artifacts
+./scripts/clean-tests.sh
+```
+
+### Test Database
+
+Tests use SQLite in-memory database for fast execution:
+
+```bash
+# Run tests with specific database
+DATABASE_DRIVER=sqlite go test ./...
+
+# Run tests with PostgreSQL (requires running DB)
+DATABASE_DRIVER=postgres go test ./...
+```
+
+### API Testing
+
+```bash
+# Test health endpoint
+curl http://localhost:8080/health
+
+# Test user registration
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"Password123","name":"Test User"}'
+
+# Test user login
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"Password123"}'
+```
+
+### Performance Testing
+
+```bash
+# Run benchmark tests
+go test -bench=. ./...
+
+# Run specific benchmark
+go test -bench=BenchmarkRegister ./internal/api/handlers
+
+# Run benchmarks with memory profiling
+go test -bench=. -benchmem ./...
+```
+
+### Test Best Practices
+
+1. **Test Structure**: Each test follows the Arrange-Act-Assert pattern
+2. **Test Isolation**: Each test is independent and cleans up after itself
+3. **Mock Usage**: External dependencies are mocked for unit tests
+4. **Coverage Target**: Aim for >80% test coverage
+5. **Test Naming**: Tests are named descriptively (e.g., `TestRegisterHandler_SuccessfulRegistration`)
+
+### Continuous Integration
+
+The project includes CI/CD configuration for automated testing:
+
+```bash
+# Run CI tests locally
+./scripts/ci-test.sh
+
+# Run linting
+golangci-lint run
+
+# Run security scanning
+gosec ./...
+```
 
 ## API Documentation
 
@@ -185,10 +314,3 @@ DATABASE_SSL_MODE=disable
 
 JWT_SECRET=your-super-secret-jwt-key-here
 ```
-
-## Testing
-
-```bash
-go test ./...
-go test -cover ./...
-``` 
