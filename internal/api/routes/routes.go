@@ -4,6 +4,7 @@ import (
 	"simple_api/internal/api/handlers"
 	"simple_api/internal/api/middleware"
 	"simple_api/internal/config"
+	"simple_api/internal/services"
 	"simple_api/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -13,7 +14,11 @@ import (
 )
 
 func Setup(db *gorm.DB, log *logger.Logger, cfg *config.Config) *gin.Engine {
-	handler := handlers.NewHandler(db, cfg)
+	// Initialize services
+	userService := services.NewUserService(db, cfg, log)
+	
+	// Initialize handlers with services
+	handler := handlers.NewHandler(userService)
 
 	router := gin.New()
 

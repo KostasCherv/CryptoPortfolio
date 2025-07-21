@@ -2,48 +2,24 @@ package handlers
 
 import (
 	"net/http"
-	"regexp"
-	"strings"
 	"time"
 
-	"simple_api/internal/config"
-	"simple_api/internal/models"
+	"simple_api/internal/services"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type Handler struct {
-	DB     *gorm.DB
-	Config *config.Config
+	userService services.UserService
 }
 
-func NewHandler(db *gorm.DB, cfg *config.Config) *Handler {
-	return &Handler{DB: db, Config: cfg}
+func NewHandler(userService services.UserService) *Handler {
+	return &Handler{userService: userService}
 }
 
 // Simple error response helper
 func errorResponse(c *gin.Context, status int, message string) {
 	c.JSON(status, gin.H{"error": message})
-}
-
-// Basic password strength validation
-func validatePassword(password string) string {
-	if len(password) < 8 {
-		return "Password must be at least 8 characters long"
-	}
-	if !regexp.MustCompile(`[A-Z]`).MatchString(password) {
-		return "Password must contain at least one uppercase letter"
-	}
-	if !regexp.MustCompile(`[a-z]`).MatchString(password) {
-		return "Password must contain at least one lowercase letter"
-	}
-	if !regexp.MustCompile(`[0-9]`).MatchString(password) {
-		return "Password must contain at least one number"
-	}
-	return ""
 }
 
 // HealthCheck handles health check requests
@@ -62,6 +38,7 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 	})
 }
 
+// Request types for Swagger documentation
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
 	Password string `json:"password" binding:"required,min=6" example:"Password123"`
@@ -73,6 +50,11 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required" example:"Password123"`
 }
 
+type UpdateUserRequest struct {
+	Name string `json:"name" binding:"required,min=2" example:"John Doe Updated"`
+}
+
+// Response types for Swagger documentation
 type UserResponse struct {
 	ID        uint      `json:"id" example:"1"`
 	Email     string    `json:"email" example:"user@example.com"`
@@ -89,6 +71,15 @@ type AuthResponse struct {
 
 type ErrorResponse struct {
 	Error string `json:"error" example:"Invalid request data"`
+}
+
+type UserProfileResponse struct {
+	User UserResponse `json:"user"`
+}
+
+type UpdateUserResponse struct {
+	Message string       `json:"message" example:"User updated successfully"`
+	User    UserResponse `json:"user"`
 }
 
 // Register handles user registration
@@ -111,56 +102,29 @@ func (h *Handler) Register() gin.HandlerFunc {
 			return
 		}
 
-		// Validate password strength
-		if errMsg := validatePassword(req.Password); errMsg != "" {
-			errorResponse(c, http.StatusBadRequest, errMsg)
-			return
+		// Convert to service request
+		serviceReq := &services.RegisterRequest{
+			Email:    req.Email,
+			Password: req.Password,
+			Name:     req.Name,
 		}
 
-		// Check if user already exists
-		var existingUser models.User
-		if err := h.DB.Where("email = ?", strings.ToLower(req.Email)).First(&existingUser).Error; err == nil {
-			errorResponse(c, http.StatusConflict, "User with this email already exists")
-			return
-		}
-
-		// Hash password
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		// Call service layer
+		ctx := c.Request.Context()
+		response, err := h.userService.Register(ctx, serviceReq)
 		if err != nil {
-			errorResponse(c, http.StatusInternalServerError, "Failed to process password")
+			switch err {
+			case services.ErrUserAlreadyExists:
+				errorResponse(c, http.StatusConflict, "User with this email already exists")
+			case services.ErrInvalidPassword:
+				errorResponse(c, http.StatusBadRequest, err.Error())
+			default:
+				errorResponse(c, http.StatusInternalServerError, "Failed to create user")
+			}
 			return
 		}
 
-		// Create user
-		user := models.User{
-			Email:    strings.ToLower(req.Email),
-			Password: string(hashedPassword),
-			Name:     strings.TrimSpace(req.Name),
-		}
-
-		if err := h.DB.Create(&user).Error; err != nil {
-			errorResponse(c, http.StatusInternalServerError, "Failed to create user")
-			return
-		}
-
-		// Generate JWT token
-		token, err := h.generateJWT(user.ID)
-		if err != nil {
-			errorResponse(c, http.StatusInternalServerError, "Failed to generate token")
-			return
-		}
-
-		c.JSON(http.StatusCreated, gin.H{
-			"message": "User registered successfully",
-			"token":   token,
-			"user": UserResponse{
-				ID:        user.ID,
-				Email:     user.Email,
-				Name:      user.Name,
-				CreatedAt: user.CreatedAt,
-				UpdatedAt: user.UpdatedAt,
-			},
-		})
+		c.JSON(http.StatusCreated, response)
 	}
 }
 
@@ -184,42 +148,27 @@ func (h *Handler) Login() gin.HandlerFunc {
 			return
 		}
 
-		// Find user by email
-		var user models.User
-		if err := h.DB.Where("email = ?", strings.ToLower(req.Email)).First(&user).Error; err != nil {
-			errorResponse(c, http.StatusUnauthorized, "Invalid credentials")
-			return
+		// Convert to service request
+		serviceReq := &services.LoginRequest{
+			Email:    req.Email,
+			Password: req.Password,
 		}
 
-		// Verify password
-		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			errorResponse(c, http.StatusUnauthorized, "Invalid credentials")
-			return
-		}
-
-		// Generate JWT token
-		token, err := h.generateJWT(user.ID)
+		// Call service layer
+		ctx := c.Request.Context()
+		response, err := h.userService.Login(ctx, serviceReq)
 		if err != nil {
-			errorResponse(c, http.StatusInternalServerError, "Failed to generate token")
+			switch err {
+			case services.ErrInvalidCredentials:
+				errorResponse(c, http.StatusUnauthorized, "Invalid credentials")
+			default:
+				errorResponse(c, http.StatusInternalServerError, "Login failed")
+			}
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Login successful",
-			"token":   token,
-			"user": UserResponse{
-				ID:        user.ID,
-				Email:     user.Email,
-				Name:      user.Name,
-				CreatedAt: user.CreatedAt,
-				UpdatedAt: user.UpdatedAt,
-			},
-		})
+		c.JSON(http.StatusOK, response)
 	}
-}
-
-type UserProfileResponse struct {
-	User UserResponse `json:"user"`
 }
 
 // GetCurrentUser retrieves the current authenticated user's profile
@@ -241,31 +190,23 @@ func (h *Handler) GetCurrentUser() gin.HandlerFunc {
 			return
 		}
 
-		var user models.User
-		if err := h.DB.First(&user, userID).Error; err != nil {
-			errorResponse(c, http.StatusNotFound, "User not found")
+		// Call service layer
+		ctx := c.Request.Context()
+		user, err := h.userService.GetUserByID(ctx, userID.(uint))
+		if err != nil {
+			switch err {
+			case services.ErrUserNotFound:
+				errorResponse(c, http.StatusNotFound, "User not found")
+			default:
+				errorResponse(c, http.StatusInternalServerError, "Failed to retrieve user")
+			}
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"user": UserResponse{
-				ID:        user.ID,
-				Email:     user.Email,
-				Name:      user.Name,
-				CreatedAt: user.CreatedAt,
-				UpdatedAt: user.UpdatedAt,
-			},
+			"user": user,
 		})
 	}
-}
-
-type UpdateUserRequest struct {
-	Name string `json:"name" binding:"required,min=2" example:"John Doe Updated"`
-}
-
-type UpdateUserResponse struct {
-	Message string       `json:"message" example:"User updated successfully"`
-	User    UserResponse `json:"user"`
 }
 
 // UpdateUser updates the current authenticated user's profile
@@ -296,37 +237,27 @@ func (h *Handler) UpdateUser() gin.HandlerFunc {
 			return
 		}
 
-		var user models.User
-		if err := h.DB.First(&user, userID).Error; err != nil {
-			errorResponse(c, http.StatusNotFound, "User not found")
-			return
+		// Convert to service request
+		serviceReq := &services.UpdateUserRequest{
+			Name: req.Name,
 		}
 
-		// Update user
-		user.Name = strings.TrimSpace(req.Name)
-		if err := h.DB.Save(&user).Error; err != nil {
-			errorResponse(c, http.StatusInternalServerError, "Failed to update user")
+		// Call service layer
+		ctx := c.Request.Context()
+		user, err := h.userService.UpdateUser(ctx, userID.(uint), serviceReq)
+		if err != nil {
+			switch err {
+			case services.ErrUserNotFound:
+				errorResponse(c, http.StatusNotFound, "User not found")
+			default:
+				errorResponse(c, http.StatusInternalServerError, "Failed to update user")
+			}
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"message": "User updated successfully",
-			"user": UserResponse{
-				ID:        user.ID,
-				Email:     user.Email,
-				Name:      user.Name,
-				CreatedAt: user.CreatedAt,
-				UpdatedAt: user.UpdatedAt,
-			},
+			"user":    user,
 		})
 	}
-}
-
-func (h *Handler) generateJWT(userID uint) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
-		"iat":     time.Now().Unix(),
-	})
-	return token.SignedString([]byte(h.Config.JWT.Secret))
 }
