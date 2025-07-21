@@ -8,11 +8,11 @@ import (
 
 	"simple_api/internal/config"
 	"simple_api/internal/models"
+	"simple_api/internal/repository"
 	"simple_api/pkg/logger"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 // Common errors
@@ -60,23 +60,25 @@ type UserService interface {
 	Login(ctx context.Context, req *LoginRequest) (*AuthResponse, error)
 	GetUserByID(ctx context.Context, userID uint) (*UserResponse, error)
 	UpdateUser(ctx context.Context, userID uint, req *UpdateUserRequest) (*UserResponse, error)
+	ListUsers(ctx context.Context, opts *repository.QueryOptions) (*repository.PaginatedResult[UserResponse], error)
+	SearchUsers(ctx context.Context, query string, opts *repository.QueryOptions) (*repository.PaginatedResult[UserResponse], error)
 	ValidatePassword(password string) error
 	GenerateJWT(userID uint) (string, error)
 }
 
 // userService implements the UserService interface
 type userService struct {
-	db     *gorm.DB
-	config *config.Config
-	logger *logger.Logger
+	userRepo repository.UserRepository
+	config   *config.Config
+	logger   *logger.Logger
 }
 
 // NewUserService creates a new instance of UserService
-func NewUserService(db *gorm.DB, config *config.Config, logger *logger.Logger) UserService {
+func NewUserService(userRepo repository.UserRepository, config *config.Config, logger *logger.Logger) UserService {
 	return &userService{
-		db:     db,
-		config: config,
-		logger: logger,
+		userRepo: userRepo,
+		config:   config,
+		logger:   logger,
 	}
 }
 
@@ -87,9 +89,13 @@ func (s *userService) Register(ctx context.Context, req *RegisterRequest) (*Auth
 		return nil, err
 	}
 
-	// Check if user already exists
-	var existingUser models.User
-	if err := s.db.WithContext(ctx).Where("email = ?", strings.ToLower(req.Email)).First(&existingUser).Error; err == nil {
+	// Check if user already exists using repository
+	exists, err := s.userRepo.ExistsByEmail(ctx, strings.ToLower(req.Email))
+	if err != nil {
+		s.logger.Error("Failed to check if user exists", "error", err, "email", req.Email)
+		return nil, err
+	}
+	if exists {
 		return nil, ErrUserAlreadyExists
 	}
 
@@ -100,14 +106,17 @@ func (s *userService) Register(ctx context.Context, req *RegisterRequest) (*Auth
 		return nil, ErrInvalidPassword
 	}
 
-	// Create user
-	user := models.User{
+	// Create user using repository
+	user := &models.User{
 		Email:    strings.ToLower(req.Email),
 		Password: string(hashedPassword),
 		Name:     strings.TrimSpace(req.Name),
 	}
 
-	if err := s.db.WithContext(ctx).Create(&user).Error; err != nil {
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		if errors.Is(err, repository.ErrDuplicateKey) {
+			return nil, ErrUserAlreadyExists
+		}
 		s.logger.Error("Failed to create user", "error", err)
 		return nil, err
 	}
@@ -135,10 +144,10 @@ func (s *userService) Register(ctx context.Context, req *RegisterRequest) (*Auth
 
 // Login handles user authentication business logic
 func (s *userService) Login(ctx context.Context, req *LoginRequest) (*AuthResponse, error) {
-	// Find user by email
-	var user models.User
-	if err := s.db.WithContext(ctx).Where("email = ?", strings.ToLower(req.Email)).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	// Find user by email using repository
+	user, err := s.userRepo.FindByEmail(ctx, strings.ToLower(req.Email))
+	if err != nil {
+		if errors.Is(err, repository.ErrRecordNotFound) {
 			return nil, ErrInvalidCredentials
 		}
 		s.logger.Error("Database error during login", "error", err)
@@ -173,9 +182,9 @@ func (s *userService) Login(ctx context.Context, req *LoginRequest) (*AuthRespon
 
 // GetUserByID retrieves a user by ID
 func (s *userService) GetUserByID(ctx context.Context, userID uint) (*UserResponse, error) {
-	var user models.User
-	if err := s.db.WithContext(ctx).First(&user, userID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
 		s.logger.Error("Database error getting user", "error", err, "user_id", userID)
@@ -193,9 +202,9 @@ func (s *userService) GetUserByID(ctx context.Context, userID uint) (*UserRespon
 
 // UpdateUser updates a user's profile
 func (s *userService) UpdateUser(ctx context.Context, userID uint, req *UpdateUserRequest) (*UserResponse, error) {
-	var user models.User
-	if err := s.db.WithContext(ctx).First(&user, userID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
 		s.logger.Error("Database error getting user for update", "error", err, "user_id", userID)
@@ -204,7 +213,7 @@ func (s *userService) UpdateUser(ctx context.Context, userID uint, req *UpdateUs
 
 	// Update user
 	user.Name = strings.TrimSpace(req.Name)
-	if err := s.db.WithContext(ctx).Save(&user).Error; err != nil {
+	if err := s.userRepo.Update(ctx, user); err != nil {
 		s.logger.Error("Failed to update user", "error", err, "user_id", userID)
 		return nil, err
 	}
@@ -217,6 +226,66 @@ func (s *userService) UpdateUser(ctx context.Context, userID uint, req *UpdateUs
 		Name:      user.Name,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
+	}, nil
+}
+
+// ListUsers retrieves a paginated list of users
+func (s *userService) ListUsers(ctx context.Context, opts *repository.QueryOptions) (*repository.PaginatedResult[UserResponse], error) {
+	result, err := s.userRepo.List(ctx, opts)
+	if err != nil {
+		s.logger.Error("Failed to list users", "error", err)
+		return nil, err
+	}
+
+	// Convert models to responses
+	userResponses := make([]*UserResponse, len(result.Data))
+	for i, user := range result.Data {
+		userResponses[i] = &UserResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			Name:      user.Name,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+		}
+	}
+
+	return &repository.PaginatedResult[UserResponse]{
+		Data:    userResponses,
+		Total:   result.Total,
+		Limit:   result.Limit,
+		Offset:  result.Offset,
+		HasNext: result.HasNext,
+		HasPrev: result.HasPrev,
+	}, nil
+}
+
+// SearchUsers searches users by name or email
+func (s *userService) SearchUsers(ctx context.Context, query string, opts *repository.QueryOptions) (*repository.PaginatedResult[UserResponse], error) {
+	result, err := s.userRepo.Search(ctx, query, opts)
+	if err != nil {
+		s.logger.Error("Failed to search users", "error", err, "query", query)
+		return nil, err
+	}
+
+	// Convert models to responses
+	userResponses := make([]*UserResponse, len(result.Data))
+	for i, user := range result.Data {
+		userResponses[i] = &UserResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			Name:      user.Name,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+		}
+	}
+
+	return &repository.PaginatedResult[UserResponse]{
+		Data:    userResponses,
+		Total:   result.Total,
+		Limit:   result.Limit,
+		Offset:  result.Offset,
+		HasNext: result.HasNext,
+		HasPrev: result.HasPrev,
 	}, nil
 }
 
@@ -252,4 +321,4 @@ func (s *userService) GenerateJWT(userID uint) (string, error) {
 	}
 	
 	return tokenString, nil
-} 
+}

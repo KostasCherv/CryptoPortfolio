@@ -4,6 +4,7 @@ import (
 	"simple_api/internal/api/handlers"
 	"simple_api/internal/api/middleware"
 	"simple_api/internal/config"
+	"simple_api/internal/repository"
 	"simple_api/internal/services"
 	"simple_api/pkg/logger"
 
@@ -14,8 +15,11 @@ import (
 )
 
 func Setup(db *gorm.DB, log *logger.Logger, cfg *config.Config) *gin.Engine {
-	// Initialize services
-	userService := services.NewUserService(db, cfg, log)
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(db)
+	
+	// Initialize services with repositories
+	userService := services.NewUserService(userRepo, cfg, log)
 	
 	// Initialize handlers with services
 	handler := handlers.NewHandler(userService)
