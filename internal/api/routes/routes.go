@@ -2,14 +2,14 @@ package routes
 
 import (
 	"context"
+	"cryptoportfolio/internal/api/handlers"
+	"cryptoportfolio/internal/api/middleware"
+	"cryptoportfolio/internal/cache"
+	"cryptoportfolio/internal/config"
+	"cryptoportfolio/internal/repository"
+	"cryptoportfolio/internal/services"
+	"cryptoportfolio/pkg/logger"
 	"fmt"
-	"simple_api/internal/api/handlers"
-	"simple_api/internal/api/middleware"
-	"simple_api/internal/cache"
-	"simple_api/internal/config"
-	"simple_api/internal/repository"
-	"simple_api/internal/services"
-	"simple_api/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"

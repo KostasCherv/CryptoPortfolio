@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test coverage script for Simple API
+# Test coverage script for CryptoPortfolio
 # Generates detailed coverage reports
 
 set -e

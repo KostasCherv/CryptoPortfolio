@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"simple_api/internal/repository"
-	"simple_api/internal/services"
+	"cryptoportfolio/internal/repository"
+	"cryptoportfolio/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

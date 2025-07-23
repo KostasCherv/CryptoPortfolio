@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"simple_api/pkg/logger"
+	"cryptoportfolio/pkg/logger"
 )
 
 // CacheService provides generic caching functionality

@@ -1,9 +1,9 @@
 package database
 
 import (
+	"cryptoportfolio/internal/config"
+	"cryptoportfolio/internal/models"
 	"fmt"
-	"simple_api/internal/config"
-	"simple_api/internal/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

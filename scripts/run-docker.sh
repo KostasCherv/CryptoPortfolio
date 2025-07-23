@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Run Simple API with Docker Compose (PostgreSQL + Redis)
+# Run CryptoPortfolio with Docker Compose (PostgreSQL + Redis)
 
 set -e
 
-echo "🚀 Starting Simple API with Docker Compose..."
+echo "🚀 Starting CryptoPortfolio with Docker Compose..."
 echo "📦 Services: PostgreSQL + Redis"
 echo ""
 

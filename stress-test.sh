@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Simple API Stress Test Script
+# CryptoPortfolio Stress Test Script
 # Tests wallet balance fetching and API performance under load
 
 set -e

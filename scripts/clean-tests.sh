@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Clean tests script for Simple API
+# Clean tests script for CryptoPortfolio
 # Removes test artifacts and temporary files
 
 set -e

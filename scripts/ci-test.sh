@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CI test script for Simple API
+# CI test script for CryptoPortfolio
 # Runs all necessary checks for continuous integration
 
 set -e

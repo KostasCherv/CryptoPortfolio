@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Test script for Simple API
+# Test script for CryptoPortfolio
 # Runs all tests with coverage and proper formatting
 
 set -e
 
-echo "🧪 Running tests for Simple API..."
+echo "🧪 Running tests for CryptoPortfolio..."
 echo "=================================="
 
 # Colors for output

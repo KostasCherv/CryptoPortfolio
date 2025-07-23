@@ -10,19 +10,19 @@ import (
 	"syscall"
 	"time"
 
-	"simple_api/internal/api/routes"
-	"simple_api/internal/config"
-	"simple_api/internal/database"
-	"simple_api/pkg/logger"
+	"cryptoportfolio/internal/api/routes"
+	"cryptoportfolio/internal/config"
+	"cryptoportfolio/internal/database"
+	"cryptoportfolio/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 
-	_ "simple_api/docs"
+	_ "cryptoportfolio/docs"
 )
 
-// @title           Simple API
+// @title           CryptoPortfolio API
 // @version         1.0
-// @description     A simple, high-performance Go API with authentication and user management
+// @description     A high-performance Go API for crypto portfolio management with wallet watchlist and Web3 integration
 // @termsOfService  http://swagger.io/terms/
 
 // @contact.name   API Support

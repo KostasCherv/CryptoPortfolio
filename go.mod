@@ -1,4 +1,4 @@
-module simple_api
+module cryptoportfolio
 
 go 1.24.5
 

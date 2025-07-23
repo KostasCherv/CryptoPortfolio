@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"simple_api/internal/cache"
-	"simple_api/internal/config"
-	"simple_api/internal/models"
-	"simple_api/pkg/logger"
+	"cryptoportfolio/internal/cache"
+	"cryptoportfolio/internal/config"
+	"cryptoportfolio/internal/models"
+	"cryptoportfolio/pkg/logger"
 
 	"github.com/stretchr/testify/assert"
 )

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"simple_api/internal/config"
-	"simple_api/pkg/logger"
+	"cryptoportfolio/internal/config"
+	"cryptoportfolio/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"

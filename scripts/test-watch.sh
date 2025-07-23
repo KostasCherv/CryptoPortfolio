@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test watch script for Simple API
+# Test watch script for CryptoPortfolio
 # Runs tests automatically when files change
 
 set -e

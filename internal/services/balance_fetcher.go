@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"simple_api/internal/cache"
-	"simple_api/internal/config"
-	"simple_api/internal/models"
-	"simple_api/internal/repository"
-	"simple_api/pkg/logger"
+	"cryptoportfolio/internal/cache"
+	"cryptoportfolio/internal/config"
+	"cryptoportfolio/internal/models"
+	"cryptoportfolio/internal/repository"
+	"cryptoportfolio/pkg/logger"
 )
 
 // BalanceFetcherService handles background balance fetching

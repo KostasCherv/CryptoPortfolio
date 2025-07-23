@@ -65,7 +65,7 @@ func Load() (*Config, error) {
 			Port:     getEnvAsInt("DATABASE_PORT", 5432),
 			User:     getEnv("DATABASE_USER", "postgres"),
 			Password: getEnv("DATABASE_PASSWORD", "password"),
-			DBName:   getEnv("DATABASE_DB_NAME", "simple_api"),
+			DBName:   getEnv("DATABASE_DB_NAME", "cryptoportfolio"),
 			SSLMode:  getEnv("DATABASE_SSL_MODE", "disable"),
 		},
 		Redis: RedisConfig{

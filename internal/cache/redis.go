@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"simple_api/pkg/logger"
+	"cryptoportfolio/pkg/logger"
 
 	"github.com/redis/go-redis/v9"
 )

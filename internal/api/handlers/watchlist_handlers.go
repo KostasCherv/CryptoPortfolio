@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"simple_api/internal/services"
-	"simple_api/pkg/logger"
+	"cryptoportfolio/internal/services"
+	"cryptoportfolio/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 )

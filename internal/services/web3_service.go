@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"simple_api/internal/config"
-	"simple_api/pkg/logger"
+	"cryptoportfolio/internal/config"
+	"cryptoportfolio/pkg/logger"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"

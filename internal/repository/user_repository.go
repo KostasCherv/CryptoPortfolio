@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"simple_api/internal/models"
+	"cryptoportfolio/internal/models"
 
 	"gorm.io/gorm"
 )

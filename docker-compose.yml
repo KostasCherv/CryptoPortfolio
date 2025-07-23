@@ -3,10 +3,10 @@ version: '3.8'
 services:
   db:
     image: postgres:15
-    container_name: simple_api_postgres
+    container_name: cryptoportfolio_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: simple_api
+      POSTGRES_DB: cryptoportfolio
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     ports:
@@ -21,7 +21,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: simple_api_redis
+    container_name: cryptoportfolio_redis
     restart: unless-stopped
     ports:
       - "6379:6379"

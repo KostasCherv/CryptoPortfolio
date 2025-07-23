@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"simple_api/internal/services"
+	"cryptoportfolio/internal/services"
 
 	"github.com/gin-gonic/gin"
 )

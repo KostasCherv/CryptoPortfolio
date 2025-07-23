@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Stop Simple API Docker Compose services
+# Stop CryptoPortfolio Docker Compose services
 
 set -e
 
-echo "🛑 Stopping Simple API Docker Compose services..."
+echo "🛑 Stopping CryptoPortfolio Docker Compose services..."
 echo ""
 
 # Stop services

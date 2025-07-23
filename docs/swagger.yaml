@@ -192,7 +192,7 @@ info:
     name: MIT
     url: https://opensource.org/licenses/MIT
   termsOfService: http://swagger.io/terms/
-  title: Simple API
+  title: CryptoPortfolio
   version: "1.0"
 paths:
   /api/v1/auth/login:

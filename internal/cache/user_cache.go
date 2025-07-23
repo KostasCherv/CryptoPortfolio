@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"simple_api/internal/models"
+	"cryptoportfolio/internal/models"
 )
 
 // UserCache provides user-specific caching operations
