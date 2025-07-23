@@ -68,24 +68,33 @@ WEB3_FETCH_INTERVAL=5    # Balance fetch interval (seconds)
 
 ## API Endpoints
 
+### Public Endpoints
+- `GET /health` - Health check
+
 ### Authentication
 - `POST /api/v1/auth/register` - Create account
 - `POST /api/v1/auth/login` - Login
 
-### Wallet Management
-- `POST /api/v1/wallets` - Add wallet
-- `GET /api/v1/wallets` - List wallets
-- `DELETE /api/v1/wallets/{id}` - Remove wallet
+### User Management (Protected)
+- `GET /api/v1/users/me` - Get current user profile
+- `PUT /api/v1/users/me` - Update current user profile
 
-### Token Management
-- `POST /api/v1/tokens` - Add token
-- `GET /api/v1/tokens` - List tokens
-- `DELETE /api/v1/tokens/{id}` - Remove token
+### Watchlist Management (Protected)
 
-### Balance Data
-- `GET /api/v1/balances` - Get current balances
-- `POST /api/v1/balances/refresh` - Force refresh balances
-- `GET /api/v1/balances/history` - Get balance history
+#### Wallet Management
+- `POST /api/v1/watchlist/wallets` - Add wallet
+- `GET /api/v1/watchlist/wallets` - List wallets
+- `DELETE /api/v1/watchlist/wallets/{id}` - Remove wallet
+
+#### Token Management
+- `POST /api/v1/watchlist/tokens` - Add token
+- `GET /api/v1/watchlist/tokens` - List tokens
+- `DELETE /api/v1/watchlist/tokens/{id}` - Remove token
+
+#### Balance Management
+- `GET /api/v1/watchlist/balances` - Get current balances
+- `POST /api/v1/watchlist/balances/refresh` - Force refresh balances
+- `GET /api/v1/watchlist/wallets/{wallet_id}/tokens/{token_id}/history` - Get balance history for specific wallet/token
 
 ## Background Processing
 
