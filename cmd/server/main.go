@@ -48,6 +48,9 @@ import (
 
 // @tag.name Health
 // @tag.description Health check operations
+
+// @tag.name Watchlist
+// @tag.description Wallet watchlist and balance tracking operations
 func main() {
 	// Load configuration
 	cfg, err := config.Load()

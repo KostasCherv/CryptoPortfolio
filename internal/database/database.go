@@ -22,7 +22,12 @@ func New(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	}
 
 	// Auto migrate models
-	if err := db.AutoMigrate(&models.User{}); err != nil {
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.WatchlistWallet{},
+		&models.TrackedToken{},
+		&models.WalletBalance{},
+	); err != nil {
 		return nil, err
 	}
 

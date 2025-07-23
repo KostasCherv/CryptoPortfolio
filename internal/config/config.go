@@ -1,70 +1,120 @@
 package config
 
 import (
-	"github.com/spf13/viper"
+	"fmt"
+	"os"
+	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Environment string        `mapstructure:"ENVIRONMENT"`
-	Server      ServerConfig  `mapstructure:"SERVER"`
-	Database    DatabaseConfig `mapstructure:"DATABASE"`
-	Redis       RedisConfig   `mapstructure:"REDIS"`
-	JWT         JWTConfig     `mapstructure:"JWT"`
+	Environment string
+	Server      ServerConfig
+	Database    DatabaseConfig
+	Redis       RedisConfig
+	Web3        Web3Config
+	JWT         JWTConfig
 }
 
 type ServerConfig struct {
-	Port int `mapstructure:"PORT"`
+	Port int
 }
 
 type DatabaseConfig struct {
-	Host     string `mapstructure:"HOST"`
-	Port     int    `mapstructure:"PORT"`
-	User     string `mapstructure:"USER"`
-	Password string `mapstructure:"PASSWORD"`
-	DBName   string `mapstructure:"DB_NAME"`
-	SSLMode  string `mapstructure:"SSL_MODE"`
+	Host     string
+	Port     int
+	User     string
+	Password string
+	DBName   string
+	SSLMode  string
 }
 
 type RedisConfig struct {
-	Host     string `mapstructure:"HOST"`
-	Port     int    `mapstructure:"PORT"`
-	Password string `mapstructure:"PASSWORD"`
-	DB       int    `mapstructure:"DB"`
+	Host     string
+	Port     int
+	Password string
+	DB       int
+}
+
+type Web3Config struct {
+	RPCEndpoint string
+	ChainID     int64
 }
 
 type JWTConfig struct {
-	Secret string `mapstructure:"SECRET"`
+	Secret string
 }
 
 func Load() (*Config, error) {
-	viper.SetConfigName(".env")
-	viper.SetConfigType("env")
-	viper.AddConfigPath(".")
-	viper.AutomaticEnv()
-
-	// Set defaults
-	viper.SetDefault("ENVIRONMENT", "development")
-	viper.SetDefault("SERVER.PORT", 8080)
-	viper.SetDefault("DATABASE.HOST", "localhost")
-	viper.SetDefault("DATABASE.PORT", 5432)
-	viper.SetDefault("DATABASE.USER", "postgres")
-	viper.SetDefault("DATABASE.PASSWORD", "password")
-	viper.SetDefault("DATABASE.DB_NAME", "simple_api")
-	viper.SetDefault("DATABASE.SSL_MODE", "disable")
-	viper.SetDefault("REDIS.HOST", "localhost")
-	viper.SetDefault("REDIS.PORT", 6379)
-	viper.SetDefault("REDIS.PASSWORD", "")
-	viper.SetDefault("REDIS.DB", 0)
-	viper.SetDefault("JWT.SECRET", "your-super-secret-jwt-key-change-in-production")
-
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, err
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		fmt.Printf("Warning: Could not load .env file: %v\n", err)
 	}
 
-	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
-		return nil, err
+	config := &Config{
+		Environment: getEnv("ENVIRONMENT", "development"),
+		Server: ServerConfig{
+			Port: getEnvAsInt("SERVER_PORT", 8080),
+		},
+		Database: DatabaseConfig{
+			Host:     getEnv("DATABASE_HOST", "localhost"),
+			Port:     getEnvAsInt("DATABASE_PORT", 5432),
+			User:     getEnv("DATABASE_USER", "postgres"),
+			Password: getEnv("DATABASE_PASSWORD", "password"),
+			DBName:   getEnv("DATABASE_DB_NAME", "simple_api"),
+			SSLMode:  getEnv("DATABASE_SSL_MODE", "disable"),
+		},
+		Redis: RedisConfig{
+			Host:     getEnv("REDIS_HOST", "localhost"),
+			Port:     getEnvAsInt("REDIS_PORT", 6379),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnvAsInt("REDIS_DB", 0),
+		},
+		Web3: Web3Config{
+			RPCEndpoint: getEnv("WEB3_RPC_ENDPOINT", "https://mainnet.infura.io/v3/your-project-id"),
+			ChainID:     getEnvAsInt64("WEB3_CHAIN_ID", 1),
+		},
+		JWT: JWTConfig{
+			Secret: getEnv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production"),
+		},
 	}
 
-	return &config, nil
+	// Debug: Print what values were loaded
+	fmt.Printf("Loaded config - JWT Secret: %s\n", config.JWT.Secret)
+	fmt.Printf("Loaded config - Environment: %s\n", config.Environment)
+	fmt.Printf("Loaded config - Server Port: %d\n", config.Server.Port)
+
+	// Validate critical configuration
+	if config.JWT.Secret == "" || config.JWT.Secret == "your-super-secret-jwt-key-change-in-production" {
+		return nil, fmt.Errorf("JWT_SECRET is required - please set it in your .env file")
+	}
+
+	return config, nil
+}
+
+// Helper functions to get environment variables with defaults
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvAsInt64(key string, defaultValue int64) int64 {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.ParseInt(value, 10, 64); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
 }

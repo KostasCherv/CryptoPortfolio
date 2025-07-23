@@ -47,6 +47,12 @@ definitions:
     - name
     - password
     type: object
+  handlers.SuccessResponse:
+    properties:
+      message:
+        example: Operation completed successfully
+        type: string
+    type: object
   handlers.UpdateUserRequest:
     properties:
       name:
@@ -85,6 +91,94 @@ definitions:
         type: string
       updated_at:
         example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  services.AddTokenRequest:
+    properties:
+      token_address:
+        description: nil for ETH
+        type: string
+      token_name:
+        type: string
+      token_symbol:
+        type: string
+    required:
+    - token_name
+    - token_symbol
+    type: object
+  services.AddWalletRequest:
+    properties:
+      label:
+        type: string
+      wallet_address:
+        type: string
+    required:
+    - wallet_address
+    type: object
+  services.BalanceHistoryResponse:
+    properties:
+      balance:
+        type: string
+      balance_usd:
+        type: string
+      created_at:
+        type: string
+      fetched_at:
+        type: string
+      id:
+        type: integer
+      token_id:
+        type: integer
+      token_symbol:
+        type: string
+      wallet_address:
+        type: string
+      wallet_id:
+        type: integer
+    type: object
+  services.BalanceResponse:
+    properties:
+      balance:
+        type: string
+      balance_usd:
+        type: string
+      fetched_at:
+        type: string
+      token_id:
+        type: integer
+      token_symbol:
+        type: string
+      wallet_address:
+        type: string
+      wallet_id:
+        type: integer
+    type: object
+  services.TokenResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      token_address:
+        type: string
+      token_name:
+        type: string
+      token_symbol:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  services.WalletResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      label:
+        type: string
+      updated_at:
+        type: string
+      wallet_address:
         type: string
     type: object
 host: localhost:8080
@@ -234,6 +328,297 @@ paths:
       summary: Update current user profile
       tags:
       - Users
+  /api/v1/watchlist/balances:
+    get:
+      description: Retrieve current balances for all wallets and tokens in the user's
+        watchlist
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/services.BalanceResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get wallet balances
+      tags:
+      - Watchlist
+  /api/v1/watchlist/balances/refresh:
+    post:
+      description: Trigger a manual refresh of wallet balances from the blockchain
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Refresh wallet balances
+      tags:
+      - Watchlist
+  /api/v1/watchlist/tokens:
+    get:
+      description: Retrieve all tokens in the user's watchlist
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/services.TokenResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user's tracked tokens
+      tags:
+      - Watchlist
+    post:
+      consumes:
+      - application/json
+      description: Add a new token to the user's tracked tokens
+      parameters:
+      - description: Token information
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/services.AddTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/services.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add token to watchlist
+      tags:
+      - Watchlist
+  /api/v1/watchlist/tokens/{id}:
+    delete:
+      description: Remove a token from the user's tracked tokens
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove token from watchlist
+      tags:
+      - Watchlist
+  /api/v1/watchlist/wallets:
+    get:
+      description: Retrieve all wallet addresses in the user's watchlist
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/services.WalletResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user's watchlist wallets
+      tags:
+      - Watchlist
+    post:
+      consumes:
+      - application/json
+      description: Add a new wallet address to the user's watchlist
+      parameters:
+      - description: Wallet information
+        in: body
+        name: wallet
+        required: true
+        schema:
+          $ref: '#/definitions/services.AddWalletRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/services.WalletResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add wallet to watchlist
+      tags:
+      - Watchlist
+  /api/v1/watchlist/wallets/{id}:
+    delete:
+      description: Remove a wallet address from the user's watchlist
+      parameters:
+      - description: Wallet ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove wallet from watchlist
+      tags:
+      - Watchlist
+  /api/v1/watchlist/wallets/{wallet_id}/tokens/{token_id}/history:
+    get:
+      description: Retrieve balance history for a specific wallet and token
+      parameters:
+      - description: Wallet ID
+        in: path
+        name: wallet_id
+        required: true
+        type: integer
+      - description: Token ID
+        in: path
+        name: token_id
+        required: true
+        type: integer
+      - description: 'Number of records to return (default: 50, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/services.BalanceHistoryResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get wallet balance history
+      tags:
+      - Watchlist
   /health:
     get:
       consumes:
@@ -264,3 +649,5 @@ tags:
   name: Users
 - description: Health check operations
   name: Health
+- description: Wallet watchlist and balance tracking operations
+  name: Watchlist
