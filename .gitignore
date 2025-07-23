@@ -33,3 +33,4 @@ Thumbs.db
 coverage.html
 coverage.out
 coverage/
+stress_test_results.csv
