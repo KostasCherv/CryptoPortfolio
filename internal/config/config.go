@@ -8,6 +8,7 @@ type Config struct {
 	Environment string        `mapstructure:"ENVIRONMENT"`
 	Server      ServerConfig  `mapstructure:"SERVER"`
 	Database    DatabaseConfig `mapstructure:"DATABASE"`
+	Redis       RedisConfig   `mapstructure:"REDIS"`
 	JWT         JWTConfig     `mapstructure:"JWT"`
 }
 
@@ -22,6 +23,13 @@ type DatabaseConfig struct {
 	Password string `mapstructure:"PASSWORD"`
 	DBName   string `mapstructure:"DB_NAME"`
 	SSLMode  string `mapstructure:"SSL_MODE"`
+}
+
+type RedisConfig struct {
+	Host     string `mapstructure:"HOST"`
+	Port     int    `mapstructure:"PORT"`
+	Password string `mapstructure:"PASSWORD"`
+	DB       int    `mapstructure:"DB"`
 }
 
 type JWTConfig struct {
@@ -43,6 +51,11 @@ func Load() (*Config, error) {
 	viper.SetDefault("DATABASE.PASSWORD", "password")
 	viper.SetDefault("DATABASE.DB_NAME", "simple_api")
 	viper.SetDefault("DATABASE.SSL_MODE", "disable")
+	viper.SetDefault("REDIS.HOST", "localhost")
+	viper.SetDefault("REDIS.PORT", 6379)
+	viper.SetDefault("REDIS.PASSWORD", "")
+	viper.SetDefault("REDIS.DB", 0)
+	viper.SetDefault("JWT.SECRET", "your-super-secret-jwt-key-change-in-production")
 
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err

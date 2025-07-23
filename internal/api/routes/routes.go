@@ -1,8 +1,11 @@
 package routes
 
 import (
+	"context"
+	"fmt"
 	"simple_api/internal/api/handlers"
 	"simple_api/internal/api/middleware"
+	"simple_api/internal/cache"
 	"simple_api/internal/config"
 	"simple_api/internal/repository"
 	"simple_api/internal/services"
@@ -15,11 +18,26 @@ import (
 )
 
 func Setup(db *gorm.DB, log *logger.Logger, cfg *config.Config) *gin.Engine {
+	// Initialize Redis
+	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)
+	redisClient := cache.NewRedisClient(redisAddr, cfg.Redis.Password, cfg.Redis.DB, log)
+	
+	// Test Redis connection
+	if err := redisClient.Ping(context.Background()); err != nil {
+		log.Warn("Redis connection failed, continuing without cache", "error", err)
+	} else {
+		log.Info("Redis connected successfully")
+	}
+	
+	// Initialize cache service
+	cacheService := cache.NewCacheService(redisClient, log)
+	userCache := cache.NewUserCache(cacheService)
+	
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	
-	// Initialize services with repositories
-	userService := services.NewUserService(userRepo, cfg, log)
+	// Initialize services with repositories and cache
+	userService := services.NewUserService(userRepo, userCache, cfg, log)
 	
 	// Initialize handlers with services
 	handler := handlers.NewHandler(userService)

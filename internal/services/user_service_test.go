@@ -1,14 +1,66 @@
 package services
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"simple_api/internal/cache"
 	"simple_api/internal/config"
+	"simple_api/internal/models"
 	"simple_api/pkg/logger"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// MockUserCache implements cache.UserCacheProvider for testing
+type MockUserCache struct {
+	users map[uint]*models.User
+	emails map[string]*models.User
+}
+
+func NewMockUserCache() *MockUserCache {
+	return &MockUserCache{
+		users: make(map[uint]*models.User),
+		emails: make(map[string]*models.User),
+	}
+}
+
+func (m *MockUserCache) GetUserByID(ctx context.Context, userID uint) (*models.User, error) {
+	if user, exists := m.users[userID]; exists {
+		return user, nil
+	}
+	return nil, cache.ErrCacheMiss
+}
+
+func (m *MockUserCache) SetUserByID(ctx context.Context, user *models.User) error {
+	m.users[user.ID] = user
+	return nil
+}
+
+func (m *MockUserCache) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	if user, exists := m.emails[email]; exists {
+		return user, nil
+	}
+	return nil, cache.ErrCacheMiss
+}
+
+func (m *MockUserCache) SetUserByEmail(ctx context.Context, user *models.User) error {
+	m.emails[user.Email] = user
+	return nil
+}
+
+func (m *MockUserCache) InvalidateUser(ctx context.Context, userID uint, email string) error {
+	delete(m.users, userID)
+	delete(m.emails, email)
+	return nil
+}
+
+func (m *MockUserCache) InvalidateAllUsers(ctx context.Context) error {
+	m.users = make(map[uint]*models.User)
+	m.emails = make(map[string]*models.User)
+	return nil
+}
 
 func TestUserService_ValidatePassword(t *testing.T) {
 	// Arrange
@@ -115,9 +167,10 @@ func TestUserService_NewUserService(t *testing.T) {
 		},
 	}
 	logger := logger.New()
+	mockCache := NewMockUserCache()
 
 	// Act
-	service := NewUserService(nil, config, logger)
+	service := NewUserService(nil, mockCache, config, logger)
 
 	// Assert
 	assert.NotNil(t, service)

@@ -40,6 +40,7 @@ simple_api/
 
 - Go 1.21 or higher
 - PostgreSQL 12 or higher
+- Redis 6 or higher (optional, for caching)
 
 ## Installation
 
@@ -67,7 +68,7 @@ simple_api/
 3. **Set up environment variables**
    ```bash
    cp .env.example .env
-   # Edit .env with your database credentials
+   # Edit .env with your database and Redis credentials
    ```
 
 4. **Set up PostgreSQL database**
@@ -80,8 +81,19 @@ simple_api/
 ## Running the Application
 
 ### Development
+
+#### Option 1: Local Development
 ```bash
 go run cmd/server/main.go
+```
+
+#### Option 2: Docker Compose (Recommended)
+```bash
+# Start all services (PostgreSQL + Redis)
+./scripts/run-docker.sh
+
+# Stop services
+./scripts/stop-docker.sh
 ```
 
 ### Production
@@ -91,6 +103,15 @@ go build -o bin/server cmd/server/main.go
 ```
 
 The server starts on `http://localhost:8080` by default.
+
+### Docker Services
+
+When using Docker Compose, the following services are available:
+
+- **Application**: http://localhost:8080
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+- **Swagger Docs**: http://localhost:8080/swagger/index.html
 
 ## Testing
 

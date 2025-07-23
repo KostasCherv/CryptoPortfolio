@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"simple_api/internal/cache"
 	"simple_api/internal/config"
 	"simple_api/internal/models"
 	"simple_api/internal/repository"
@@ -68,17 +69,19 @@ type UserService interface {
 
 // userService implements the UserService interface
 type userService struct {
-	userRepo repository.UserRepository
-	config   *config.Config
-	logger   *logger.Logger
+	userRepo   repository.UserRepository
+	userCache  cache.UserCacheProvider
+	config     *config.Config
+	logger     *logger.Logger
 }
 
 // NewUserService creates a new instance of UserService
-func NewUserService(userRepo repository.UserRepository, config *config.Config, logger *logger.Logger) UserService {
+func NewUserService(userRepo repository.UserRepository, userCache cache.UserCacheProvider, config *config.Config, logger *logger.Logger) UserService {
 	return &userService{
-		userRepo: userRepo,
-		config:   config,
-		logger:   logger,
+		userRepo:  userRepo,
+		userCache: userCache,
+		config:    config,
+		logger:    logger,
 	}
 }
 
@@ -182,6 +185,20 @@ func (s *userService) Login(ctx context.Context, req *LoginRequest) (*AuthRespon
 
 // GetUserByID retrieves a user by ID
 func (s *userService) GetUserByID(ctx context.Context, userID uint) (*UserResponse, error) {
+	// Try cache first
+	cachedUser, err := s.userCache.GetUserByID(ctx, userID)
+	if err == nil {
+		s.logger.Debug("User found in cache", "user_id", userID)
+		return &UserResponse{
+			ID:        cachedUser.ID,
+			Email:     cachedUser.Email,
+			Name:      cachedUser.Name,
+			CreatedAt: cachedUser.CreatedAt,
+			UpdatedAt: cachedUser.UpdatedAt,
+		}, nil
+	}
+
+	// Cache miss, get from database
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, repository.ErrRecordNotFound) {
@@ -189,6 +206,11 @@ func (s *userService) GetUserByID(ctx context.Context, userID uint) (*UserRespon
 		}
 		s.logger.Error("Database error getting user", "error", err, "user_id", userID)
 		return nil, err
+	}
+
+	// Store in cache for next time
+	if err := s.userCache.SetUserByID(ctx, user); err != nil {
+		s.logger.Warn("Failed to cache user", "error", err, "user_id", userID)
 	}
 
 	return &UserResponse{
@@ -216,6 +238,11 @@ func (s *userService) UpdateUser(ctx context.Context, userID uint, req *UpdateUs
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		s.logger.Error("Failed to update user", "error", err, "user_id", userID)
 		return nil, err
+	}
+
+	// Invalidate cache
+	if err := s.userCache.InvalidateUser(ctx, user.ID, user.Email); err != nil {
+		s.logger.Warn("Failed to invalidate user cache", "error", err, "user_id", userID)
 	}
 
 	s.logger.Info("User updated successfully", "user_id", user.ID)
@@ -322,3 +349,4 @@ func (s *userService) GenerateJWT(userID uint) (string, error) {
 	
 	return tokenString, nil
 }
+ 
