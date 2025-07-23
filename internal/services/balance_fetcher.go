@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"simple_api/internal/cache"
+	"simple_api/internal/config"
 	"simple_api/internal/models"
 	"simple_api/internal/repository"
 	"simple_api/pkg/logger"
@@ -26,6 +27,7 @@ type balanceFetcherService struct {
 	web3Service    Web3Service
 	cacheService   cache.CacheProvider
 	logger         *logger.Logger
+	config         *config.Config
 	stopChan       chan struct{}
 	wg             sync.WaitGroup
 }
@@ -36,12 +38,14 @@ func NewBalanceFetcherService(
 	web3Service Web3Service,
 	cacheService cache.CacheProvider,
 	logger *logger.Logger,
+	config *config.Config,
 ) BalanceFetcherService {
 	return &balanceFetcherService{
 		watchlistRepo: watchlistRepo,
 		web3Service:    web3Service,
 		cacheService:   cacheService,
 		logger:         logger,
+		config:         config,
 		stopChan:       make(chan struct{}),
 	}
 }
@@ -71,7 +75,7 @@ func (bfs *balanceFetcherService) Stop() {
 func (bfs *balanceFetcherService) runBalanceFetcher(ctx context.Context) {
 	defer bfs.wg.Done()
 	
-	ticker := time.NewTicker(1 * time.Minute) // Fetch every 1 minutes
+	ticker := time.NewTicker(time.Duration(bfs.config.Web3.FetchInterval) * time.Minute)
 	defer ticker.Stop()
 	
 	// Fetch immediately on startup
@@ -142,7 +146,7 @@ func (bfs *balanceFetcherService) fetchAllBalances(ctx context.Context) error {
 	}
 	
 	// Use a worker pool to fetch balances concurrently
-	const maxWorkers = 5
+	maxWorkers := bfs.config.Web3.MaxWorkers
 	taskChan := make(chan fetchTask, 100)
 	resultChan := make(chan fetchResult, 100)
 	

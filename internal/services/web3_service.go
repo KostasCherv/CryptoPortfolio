@@ -79,8 +79,8 @@ func NewWeb3Service(config *config.Config, logger *logger.Logger) (Web3Service, 
 		return nil, fmt.Errorf("failed to connect to Ethereum client: %w", err)
 	}
 
-	// Create rate limiter (10 requests per second)
-	rateLimiter := NewRateLimiter(10)
+	// Create rate limiter from config
+	rateLimiter := NewRateLimiter(config.Web3.RateLimit)
 
 	return &web3Service{
 		client:      client,
@@ -105,25 +105,45 @@ func (s *web3Service) GetETHBalance(ctx context.Context, address string) (*big.I
 	var balance *big.Int
 	var err error
 	
-	for attempt := 1; attempt <= 3; attempt++ {
+	for attempt := 1; attempt <= 5; attempt++ {
 		balance, err = s.fetchETHBalance(ctx, address)
 		if err == nil {
 			return balance, nil
 		}
 
-		s.logger.Warn("Failed to fetch ETH balance", 
-			"address", address, 
-			"attempt", attempt, 
-			"error", err)
+		// Check if it's a rate limit error
+		isRateLimit := strings.Contains(err.Error(), "429") || strings.Contains(err.Error(), "Too Many Requests")
+		
+		// Only log non-rate-limit errors or rate limit errors on final attempt
+		if !isRateLimit || attempt == 5 {
+			s.logger.Warn("Failed to fetch ETH balance", 
+				"address", address, 
+				"attempt", attempt, 
+				"error", err,
+				"is_rate_limit", isRateLimit)
+		}
 
 		// Don't retry on context cancellation
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 
-		// Exponential backoff: 1s, 2s, 4s
-		if attempt < 3 {
-			backoff := time.Duration(1<<(attempt-1)) * time.Second
+		// Adaptive backoff based on error type
+		if attempt < 5 {
+			var backoff time.Duration
+			if isRateLimit {
+				// Longer backoff for rate limits: 5s, 10s, 20s, 40s
+				backoff = time.Duration(5*(1<<(attempt-1))) * time.Second
+			} else {
+				// Standard backoff for other errors: 1s, 2s, 4s, 8s
+				backoff = time.Duration(1<<(attempt-1)) * time.Second
+			}
+			
+			s.logger.Info("Backing off before retry", 
+				"attempt", attempt, 
+				"backoff", backoff, 
+				"is_rate_limit", isRateLimit)
+			
 			select {
 			case <-time.After(backoff):
 			case <-ctx.Done():
@@ -132,7 +152,7 @@ func (s *web3Service) GetETHBalance(ctx context.Context, address string) (*big.I
 		}
 	}
 
-	return nil, fmt.Errorf("failed to fetch ETH balance after 3 attempts: %w", err)
+	return nil, fmt.Errorf("failed to fetch ETH balance after 5 attempts: %w", err)
 }
 
 // fetchETHBalance performs the actual ETH balance fetch
@@ -160,26 +180,46 @@ func (s *web3Service) GetTokenBalance(ctx context.Context, tokenAddress, walletA
 	var balance *big.Int
 	var err error
 	
-	for attempt := 1; attempt <= 3; attempt++ {
+	for attempt := 1; attempt <= 5; attempt++ {
 		balance, err = s.fetchTokenBalance(ctx, tokenAddress, walletAddress)
 		if err == nil {
 			return balance, nil
 		}
 
-		s.logger.Warn("Failed to fetch token balance", 
-			"token", tokenAddress, 
-			"wallet", walletAddress, 
-			"attempt", attempt, 
-			"error", err)
+		// Check if it's a rate limit error
+		isRateLimit := strings.Contains(err.Error(), "429") || strings.Contains(err.Error(), "Too Many Requests")
+		
+		// Only log non-rate-limit errors or rate limit errors on final attempt
+		if !isRateLimit || attempt == 5 {
+			s.logger.Warn("Failed to fetch token balance", 
+				"token", tokenAddress, 
+				"wallet", walletAddress, 
+				"attempt", attempt, 
+				"error", err,
+				"is_rate_limit", isRateLimit)
+		}
 
 		// Don't retry on context cancellation
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 
-		// Exponential backoff: 1s, 2s, 4s
-		if attempt < 3 {
-			backoff := time.Duration(1<<(attempt-1)) * time.Second
+		// Adaptive backoff based on error type
+		if attempt < 5 {
+			var backoff time.Duration
+			if isRateLimit {
+				// Longer backoff for rate limits: 5s, 10s, 20s, 40s
+				backoff = time.Duration(5*(1<<(attempt-1))) * time.Second
+			} else {
+				// Standard backoff for other errors: 1s, 2s, 4s, 8s
+				backoff = time.Duration(1<<(attempt-1)) * time.Second
+			}
+			
+			s.logger.Info("Backing off before retry", 
+				"attempt", attempt, 
+				"backoff", backoff, 
+				"is_rate_limit", isRateLimit)
+			
 			select {
 			case <-time.After(backoff):
 			case <-ctx.Done():
@@ -188,7 +228,7 @@ func (s *web3Service) GetTokenBalance(ctx context.Context, tokenAddress, walletA
 		}
 	}
 
-	return nil, fmt.Errorf("failed to fetch token balance after 3 attempts: %w", err)
+	return nil, fmt.Errorf("failed to fetch token balance after 5 attempts: %w", err)
 }
 
 // fetchTokenBalance performs the actual token balance fetch

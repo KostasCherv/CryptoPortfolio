@@ -40,6 +40,9 @@ type RedisConfig struct {
 type Web3Config struct {
 	RPCEndpoint string
 	ChainID     int64
+	RateLimit   int // Requests per second
+	MaxWorkers  int // Number of concurrent balance fetch workers
+	FetchInterval int // Balance fetch interval in minutes
 }
 
 type JWTConfig struct {
@@ -74,6 +77,9 @@ func Load() (*Config, error) {
 		Web3: Web3Config{
 			RPCEndpoint: getEnv("WEB3_RPC_ENDPOINT", "https://mainnet.infura.io/v3/your-project-id"),
 			ChainID:     getEnvAsInt64("WEB3_CHAIN_ID", 1),
+			RateLimit:   getEnvAsInt("WEB3_RATE_LIMIT", 5),
+			MaxWorkers:  getEnvAsInt("WEB3_MAX_WORKERS", 3),
+			FetchInterval: getEnvAsInt("WEB3_FETCH_INTERVAL", 5),
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production"),

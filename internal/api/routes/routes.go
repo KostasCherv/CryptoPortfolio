@@ -48,7 +48,7 @@ func Setup(db *gorm.DB, log *logger.Logger, cfg *config.Config) *gin.Engine {
 	}
 	
 	// Initialize balance fetcher service
-	balanceFetcher := services.NewBalanceFetcherService(watchlistRepo, web3Service, cacheService, log)
+	balanceFetcher := services.NewBalanceFetcherService(watchlistRepo, web3Service, cacheService, log, cfg)
 	
 	// Start the background balance fetcher
 	balanceFetcher.Start(context.Background())
